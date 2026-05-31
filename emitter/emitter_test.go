@@ -18,7 +18,7 @@ script Route29_EventScript_WaitingMan {
 	# Display message based on time of day.
 	gettime
 	if (var(VAR_TIME) == TIME_NIGHT) {
-		msgbox(ascii"I'm waiting for POKéMON that appear\n"
+		msgbox(ascii"I'm waiting for POKéMON that appear\n" // this is a trailing comment
 				"only in the morning.")
 	} else {
 		msgbox("I'm waiting for POKéMON that appear\n"

@@ -82,14 +82,7 @@ func (l *Lexer) NextToken() token.Token {
 		return tok
 	}
 
-	l.skipWhitespace()
-
-	// Check for single-line comment.
-	// Both '#' and '//' are valid comment styles.
-	for l.ch == '#' || (l.ch == '/' && l.peekChar() == '/') {
-		l.skipToNextLine()
-		l.skipWhitespace()
-	}
+	l.skipWhitespaceAndComments()
 
 	switch l.ch {
 	case '*':
@@ -319,20 +312,21 @@ func (l *Lexer) skipWhitespace() {
 	}
 }
 
+// skipWhitespaceAndComments advances past any whitespace and single-line
+// comments. Both '#' and '//' are valid comment styles.
+func (l *Lexer) skipWhitespaceAndComments() {
+	l.skipWhitespace()
+	for l.ch == '#' || (l.ch == '/' && l.peekChar() == '/') {
+		l.skipToNextLine()
+		l.skipWhitespace()
+	}
+}
+
 func (l *Lexer) skipToNextLine() {
 	for l.ch != '\n' && l.ch != 0 {
 		l.readChar()
 	}
 	l.readChar()
-}
-
-func (l *Lexer) skipNewlineWhitespace() bool {
-	skipped := false
-	for l.ch == '\n' || l.ch == '\r' {
-		l.readChar()
-		skipped = true
-	}
-	return skipped
 }
 
 func newSingleCharToken(tokenType token.Type, ch rune, lineNumber, charNumber, utf8CharNumber int) token.Token {
@@ -457,7 +451,7 @@ func (l *Lexer) readString() (string, int, int, int, bool, []token.SourceLinePos
 		endLine = l.lineNumber
 		endChar = l.prevCharNumber
 		endUtf8Char = l.prevUtf8CharNumber
-		l.skipWhitespace()
+		l.skipWhitespaceAndComments()
 	}
 	return sb.String(), endLine, endChar, endUtf8Char, isAutoString, linePositions
 }

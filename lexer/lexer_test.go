@@ -53,7 +53,9 @@ func TestNextToken(t *testing.T) {
 		mart
 		"multiline text
 		string"
-	moves`
+	moves
+		"trailing comment\n" // this is comment
+		"works correctly"`
 
 	tests := []struct {
 		expectedType          token.Type
@@ -164,7 +166,8 @@ func TestNextToken(t *testing.T) {
 		{token.MART, "mart", 44, 2, 2, 44, 6, 6},
 		{token.AUTOSTRING, "multiline text\\n\nstring", 45, 2, 2, 46, 9, 9},
 		{token.MOVES, "moves", 47, 1, 1, 47, 6, 6},
-		{token.EOF, "", 47, 6, 6, 47, 6, 6},
+		{token.STRING, "trailing comment\\n\nworks correctly", 48, 2, 2, 49, 19, 19},
+		{token.EOF, "", 49, 19, 19, 49, 19, 19},
 	}
 
 	l := New(input)
