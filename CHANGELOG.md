@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 - Nothing, yet.
 
+## [3.6.1] - 2026-05-31
+### Fixed
+- Fix bug where comments inside multiline strings weren't properly stripped.
+
 ## [3.6.0] - 2026-02-15
 ### Added
 - Add multi-line string support.
@@ -193,7 +197,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0] - 2019-08-27
 Initial Release
 
-[Unreleased]: https://github.com/huderlem/poryscript/compare/3.6.0...HEAD
+[Unreleased]: https://github.com/huderlem/poryscript/compare/3.6.1...HEAD
+[3.6.0]: https://github.com/huderlem/poryscript/compare/3.6.0...3.6.1
 [3.6.0]: https://github.com/huderlem/poryscript/compare/3.5.2...3.6.0
 [3.5.1]: https://github.com/huderlem/poryscript/compare/3.5.1...3.5.2
 [3.5.0]: https://github.com/huderlem/poryscript/compare/3.5.0...3.5.1
