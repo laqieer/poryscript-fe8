@@ -1,5 +1,7 @@
 # poryscript-fe8
 
+[![Go](https://github.com/laqieer/poryscript-fe8/actions/workflows/go-dev.yml/badge.svg)](https://github.com/laqieer/poryscript-fe8/actions/workflows/go-dev.yml)
+
 **Proof-of-concept** fork of [huderlem/poryscript](https://github.com/huderlem/poryscript)
 that retargets its emitter to produce **[fireemblem8u](https://github.com/FireEmblemUniverse/fireemblem8u)**
 (FE8: *The Sacred Stones*) decomp event scripts instead of pokeemerald assembly.
