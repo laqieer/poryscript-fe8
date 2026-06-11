@@ -1,0 +1,43 @@
+{
+  "//": "TEMPLATE -- copy the contents below into YOUR FE8 hack/decomp workspace's .vscode/settings.json, then adjust the paths to match your project layout. Do not place this file in poryscript-fe8 itself. All paths are resolved relative to the .pory file's workspace folder unless absolute.",
+
+  "//commandConfigFilepath": "FE8 poryscript command config (DSL name -> EAstdlib macro). Point this at the command_config.fe8.json shipped with laqieer/poryscript-fe8.",
+  "languageServerPoryscript.commandConfigFilepath": "tools/poryscript-fe8/command_config.fe8.json",
+
+  "//fontConfigFilepath": "FE8 font width config, for text line-length validation.",
+  "languageServerPoryscript.fontConfigFilepath": "tools/poryscript-fe8/font_config.json",
+
+  "//commandIncludes": "Files the language server parses for `.macro` blocks to learn the available poryscript commands. FE8 has no asm/macros/event.inc, so use the generated includes from this repo's vscode/ directory. Adjust the path to wherever you keep poryscript-fe8.",
+  "languageServerPoryscript.commandIncludes": [
+    "tools/poryscript-fe8/vscode/fe8_event_macros.inc"
+  ],
+
+  "//symbolIncludes": "Headers parsed for #define constants so symbols like song/item/character IDs get highlighting + completion in .pory files. Point `file` at your FE8 decomp constant headers. Add one entry per header (or use a glob your build copies in). `expression` must have a capture group for the symbol name; `type` of `define` matches C #define lines.",
+  "languageServerPoryscript.symbolIncludes": [
+    {
+      "expression": "^\\s*#define\\s+(\\w+)\\s+(.+)",
+      "type": "define",
+      "file": "include/constants/songs.h"
+    },
+    {
+      "expression": "^\\s*#define\\s+(\\w+)\\s+(.+)",
+      "type": "define",
+      "file": "include/constants/items.h"
+    },
+    {
+      "expression": "^\\s*#define\\s+(\\w+)\\s+(.+)",
+      "type": "define",
+      "file": "include/constants/characters.h"
+    },
+    {
+      "expression": "^\\s*#define\\s+(\\w+)\\s+(.+)",
+      "type": "define",
+      "file": "include/constants/chapters.h"
+    },
+    {
+      "expression": "^\\s*#define\\s+(\\w+)\\s+(.+)",
+      "type": "define",
+      "file": "include/constants/backgrounds.h"
+    }
+  ]
+}
