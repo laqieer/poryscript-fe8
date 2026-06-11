@@ -1,0 +1,37 @@
+{
+  "array_type": "EventListScr",
+  "call_command": "call",
+  "call_macro": "CALL",
+  "header_includes": [
+    "global.h",
+    "bmunit.h",
+    "event.h",
+    "eventinfo.h",
+    "eventcall.h",
+    "EAstdlib.h",
+    "constants/characters.h",
+    "constants/backgrounds.h",
+    "constants/items.h",
+    "constants/songs.h",
+    "constants/chapters.h"
+  ],
+  "commands": {
+    "playbgm":     { "macro": "MUSC" },
+    "fadeout":     { "macro": "FADU" },
+    "fadein":      { "macro": "FADI" },
+    "loadunits":   { "macro": "LOAD1", "args": [0, 1] },
+    "loadunits2":  { "macro": "LOAD2", "args": [0, 1] },
+    "wait":        { "macro": "ENUN" },
+    "setflag":     { "macro": "ENUT" },
+    "clearflag":   { "macro": "ENUF" },
+    "setslot":     { "macro": "SVAL", "args": [0, 1] },
+    "move":        { "macro": "MOVE", "args": [0, 1, 2, 3] },
+    "flashcursor": { "macro": "FlashCursor", "args": [0, 1] },
+    "sleep":       { "macro": "STAL" },
+    "text":        { "macro": "Text" },
+    "textbg":      { "macro": "Text_BG", "args": [0, 1] },
+    "asmcall":     { "macro": "ASMC" },
+    "checkflag":   { "macro": "CHECK_EVENTID" },
+    "nofade":      { "macro": "NoFade" }
+  }
+}

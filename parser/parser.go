@@ -594,6 +594,16 @@ func (p *Parser) parseStatement(scriptName string) ([]ast.Statement, *impData, e
 			statement, impData, err = p.parseCommandStatement(scriptName)
 			statements = append(statements, statement)
 		}
+	case token.TEXT:
+		// "text" is normally a reserved keyword for top-level inline-text blocks
+		// (text Name { "..." }). Inside a script body, `text(...)` is unambiguously
+		// a command call (e.g. the FE8 target's msgId-based text). Treat it as one.
+		if p.peekTokenIs(token.LPAREN) {
+			statement, impData, err = p.parseCommandStatement(scriptName)
+			statements = append(statements, statement)
+		} else {
+			err = NewParseError(p.curToken, fmt.Sprintf("could not parse statement for '%s'", p.curToken.Literal))
+		}
 	case token.IF:
 		statement, impData, err = p.parseIfStatement(scriptName)
 		statements = append(statements, statement)
@@ -1922,14 +1932,22 @@ func (p *Parser) parseLeafBooleanExpression(scriptName string) (*ast.OperatorExp
 		p.nextToken()
 		parts := []string{}
 		operandToken := p.curToken
-		for p.curToken.Type != token.RPAREN {
+		// Track nested parentheses so operands such as flag(EVFLAG_TMP(8)) are
+		// captured in full rather than stopping at the first inner ')'.
+		numOpenParens := 0
+		for !(p.curToken.Type == token.RPAREN && numOpenParens == 0) {
+			if p.curToken.Type == token.LPAREN {
+				numOpenParens++
+			} else if p.curToken.Type == token.RPAREN {
+				numOpenParens--
+			}
 			parts = append(parts, p.tryReplaceWithConstant(p.curToken.Literal))
 			p.nextToken()
 			if p.curToken.Type == token.EOF {
 				return nil, nil, NewParseError(operatorToken, "missing closing ')' for condition operator value")
 			}
 		}
-		operandToken.Literal = strings.Join(parts, " ")
+		operandToken.Literal = joinOperandParts(parts)
 		operatorExpression.Operand = operandToken
 	} else {
 		var autoVarOperand *string
@@ -2037,6 +2055,20 @@ func (p *Parser) parseConditionVarOperator(expression *ast.OperatorExpression) e
 	}
 
 	return nil
+}
+
+// joinOperandParts reconstructs a condition operand from its lexed tokens,
+// suppressing the spaces around parentheses so that macro-style operands like
+// EVFLAG_TMP(8) are reproduced faithfully.
+func joinOperandParts(parts []string) string {
+	var sb strings.Builder
+	for i, part := range parts {
+		if i > 0 && part != ")" && part != "(" && parts[i-1] != "(" {
+			sb.WriteString(" ")
+		}
+		sb.WriteString(part)
+	}
+	return sb.String()
 }
 
 func (p *Parser) parseConditionFlagLikeOperator(expression *ast.OperatorExpression, operatorName string) error {

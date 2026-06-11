@@ -33,15 +33,17 @@ func (opt mapOption) Set(value string) error {
 }
 
 type options struct {
-	inputFilepath         string
-	outputFilepath        string
-	commandConfigFilepath string
-	fontConfigFilepath    string
-	defaultFontID         string
-	maxLineLength         int
-	optimize              bool
-	enableLineMarkers     bool
-	compileSwitches       map[string]string
+	inputFilepath            string
+	outputFilepath           string
+	commandConfigFilepath    string
+	fontConfigFilepath       string
+	defaultFontID            string
+	maxLineLength            int
+	optimize                 bool
+	enableLineMarkers        bool
+	compileSwitches          map[string]string
+	fe8                      bool
+	fe8CommandConfigFilepath string
 }
 
 func parseOptions() options {
@@ -55,6 +57,8 @@ func parseOptions() options {
 	lengthPtr := flag.Int("l", 0, "set default line length in pixels for formatted text (uses font config file for default)")
 	optimizePtr := flag.Bool("optimize", true, "optimize compiled script size (To disable, use '-optimize=false')")
 	enableLineMarkersPtr := flag.Bool("lm", true, "include line markers in output (enables more helpful error messages when compiling the ROM). (To disable, use '-lm=false')")
+	fe8Ptr := flag.Bool("fe8", true, "compile to a fireemblem8u (FE8) event-script C header instead of pokeemerald assembly. (To disable, use '-fe8=false')")
+	fe8ConfigPtr := flag.String("fcc", "command_config.fe8.json", "FE8 command config JSON file (maps DSL commands to EAstdlib.h macros)")
 	compileSwitches := make(mapOption)
 	flag.Var(compileSwitches, "s", "set a compile-time switch. Multiple -s options can be set. Example: -s VERSION=RUBY -s LANGUAGE=GERMAN")
 	flag.Parse()
@@ -70,16 +74,33 @@ func parseOptions() options {
 	}
 
 	return options{
-		inputFilepath:         *inputPtr,
-		outputFilepath:        *outputPtr,
-		commandConfigFilepath: *commandConfigPtr,
-		fontConfigFilepath:    *fontsPtr,
-		defaultFontID:         *fontIDPtr,
-		maxLineLength:         *lengthPtr,
-		optimize:              *optimizePtr,
-		enableLineMarkers:     *enableLineMarkersPtr,
-		compileSwitches:       compileSwitches,
+		inputFilepath:            *inputPtr,
+		outputFilepath:           *outputPtr,
+		commandConfigFilepath:    *commandConfigPtr,
+		fontConfigFilepath:       *fontsPtr,
+		defaultFontID:            *fontIDPtr,
+		maxLineLength:            *lengthPtr,
+		optimize:                 *optimizePtr,
+		enableLineMarkers:        *enableLineMarkersPtr,
+		compileSwitches:          compileSwitches,
+		fe8:                      *fe8Ptr,
+		fe8CommandConfigFilepath: *fe8ConfigPtr,
 	}
+}
+
+func readFE8CommandConfig(filepath string) emitter.FE8CommandConfig {
+	var config emitter.FE8CommandConfig
+	if len(filepath) == 0 {
+		return config
+	}
+	bytes, err := ioutil.ReadFile(filepath)
+	if err != nil {
+		log.Fatalf("PORYSCRIPT ERROR: Failed to read FE8 command config file: %s\n", err.Error())
+	}
+	if err := json.Unmarshal(bytes, &config); err != nil {
+		log.Fatalf("PORYSCRIPT ERROR: Failed to load FE8 command config file: %s\n", err.Error())
+	}
+	return config
 }
 
 func getInput(filepath string) (string, error) {
@@ -143,8 +164,14 @@ func main() {
 		log.Fatalf("PORYSCRIPT ERROR: %s\n", err.Error())
 	}
 
-	emitter := emitter.New(program, options.optimize, options.enableLineMarkers, options.inputFilepath)
-	result, err := emitter.Emit()
+	em := emitter.New(program, options.optimize, options.enableLineMarkers, options.inputFilepath)
+	var result string
+	if options.fe8 {
+		fe8Config := readFE8CommandConfig(options.fe8CommandConfigFilepath)
+		result, err = em.EmitFE8(fe8Config)
+	} else {
+		result, err = em.Emit()
+	}
 	if err != nil {
 		log.Fatalf("PORYSCRIPT ERROR: %s\n", err.Error())
 	}

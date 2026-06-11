@@ -1,0 +1,38 @@
+// Sample Poryscript for the FE8 (fireemblem8u) target.
+//
+// Demonstrates the supported subset:
+//   - commands mapped to EAstdlib.h macros (command_config.fe8.json)
+//   - call to another event script
+//   - if/elif/else on a flag() check
+//   - msgId-based text (NO inline strings; pass the message id directly)
+//   - end -> ENDA
+//
+// Compile with:
+//   ./poryscript-fe8 -i examples/sample.pory -o examples/sample.h
+
+script EventScr_Sample_BeginningScene {
+    call(EventScr_Sample_Intro)
+    playbgm(SONG_RAID)
+    loadunits(1, UnitDef_Event_SampleAlly)
+    wait
+    move(0x18, CHARACTER_SETH, 4, 4)
+    wait
+    flashcursor(CHARACTER_SETH, 60)
+    text(0x90E)
+    if (flag(EVFLAG_TMP(8))) {
+        asmcall(BmGuideTextSetAllGreen)
+        text(0x90F)
+    } else {
+        text(0x910)
+    }
+    setflag(0x8)
+    nofade
+    end
+}
+
+script EventScr_Sample_Intro {
+    fadein(16)
+    flashcursor(CHARACTER_EIRIKA, 60)
+    text(0x903)
+    end
+}

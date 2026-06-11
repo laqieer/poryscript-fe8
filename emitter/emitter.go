@@ -157,11 +157,23 @@ func (e *Emitter) emitMapScriptStatement(mapScriptStmt *ast.MapScriptsStatement,
 }
 
 func (e *Emitter) emitScriptStatement(scriptStmt *ast.ScriptStatement, textLabels map[string]struct{}) (string, error) {
-	// The algorithm for emitting script statements is to split the scripts into
-	// self-contained chunks that logically branch to one another. When branching logic
-	// occurs, create a new chunk for any shared logic that follows the branching, as well
-	// as new chunks for the destination of the branching logic. When creating and processing
-	// new chunks, it's important to remember where the chunks should return to.
+	finalChunks, err := buildScriptChunks(scriptStmt)
+	if err != nil {
+		return "", err
+	}
+	return e.renderChunks(finalChunks, scriptStmt.Name.Value, scriptStmt.Scope == token.GLOBAL, textLabels)
+}
+
+// buildScriptChunks splits a script statement into self-contained, logically-branching
+// chunks. This part of the pipeline is target-agnostic, so both the pokeemerald-style
+// emitter and the FE8 emitter share it.
+//
+// The algorithm for emitting script statements is to split the scripts into
+// self-contained chunks that logically branch to one another. When branching logic
+// occurs, create a new chunk for any shared logic that follows the branching, as well
+// as new chunks for the destination of the branching logic. When creating and processing
+// new chunks, it's important to remember where the chunks should return to.
+func buildScriptChunks(scriptStmt *ast.ScriptStatement) (map[int]*chunk, error) {
 	chunkCounter := 0
 	finalChunks := make(map[int]*chunk)
 	remainingChunks := []*chunk{
@@ -254,7 +266,7 @@ func (e *Emitter) emitScriptStatement(scriptStmt *ast.ScriptStatement, textLabel
 		} else if stmt, ok := curChunk.statements[i].(*ast.BreakStatement); ok {
 			destChunkID, ok := breakStatementReturnChunks[stmt.ScopeStatment]
 			if !ok {
-				return "", errors.New("could not emit 'break' statement because its return point is unknown")
+				return nil, errors.New("could not emit 'break' statement because its return point is unknown")
 			}
 			completeChunk := &chunk{
 				id:             curChunk.id,
@@ -266,7 +278,7 @@ func (e *Emitter) emitScriptStatement(scriptStmt *ast.ScriptStatement, textLabel
 		} else if stmt, ok := curChunk.statements[i].(*ast.ContinueStatement); ok {
 			destChunkID, ok := breakStatementOriginChunks[stmt.LoopStatment]
 			if !ok {
-				return "", errors.New("could not emit 'continue' statement because its return point is unknown")
+				return nil, errors.New("could not emit 'continue' statement because its return point is unknown")
 			}
 			completeChunk := &chunk{
 				id:             curChunk.id,
@@ -297,7 +309,7 @@ func (e *Emitter) emitScriptStatement(scriptStmt *ast.ScriptStatement, textLabel
 		}
 	}
 
-	return e.renderChunks(finalChunks, scriptStmt.Name.Value, scriptStmt.Scope == token.GLOBAL, textLabels)
+	return finalChunks, nil
 }
 
 func createConditionDestination(destinationChunk int, operatorExpression *ast.OperatorExpression) *conditionDestination {
