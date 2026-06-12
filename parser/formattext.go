@@ -47,7 +47,20 @@ func LoadFontConfig(filepath string) (FontConfig, error) {
 		return config, err
 	}
 
-	if err := json.Unmarshal(bytes, &config); err != nil {
+	return ParseFontConfig(string(bytes))
+}
+
+// ParseFontConfig parses a font width config from an in-memory JSON string. It
+// performs no file I/O, so it is safe to use in environments without a
+// filesystem (e.g. WebAssembly). An empty input string yields an empty (but
+// valid) config.
+func ParseFontConfig(jsonStr string) (FontConfig, error) {
+	var config FontConfig
+	if len(jsonStr) == 0 {
+		return config, nil
+	}
+
+	if err := json.Unmarshal([]byte(jsonStr), &config); err != nil {
 		return config, err
 	}
 
@@ -55,7 +68,7 @@ func LoadFontConfig(filepath string) (FontConfig, error) {
 		return config, err
 	}
 
-	return config, err
+	return config, nil
 }
 
 // compileReplacements pre-compiles text replacement rules. Literal patterns

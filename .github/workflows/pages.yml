@@ -1,0 +1,57 @@
+name: Deploy FE8 Poryscript Playground to GitHub Pages
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow one concurrent deployment; do not cancel an in-progress run so that a
+# deploy always completes.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Build WebAssembly compiler
+        run: GOOS=js GOARCH=wasm go build -o playground/site/main.wasm ./playground/wasm
+
+      - name: Copy Go wasm glue
+        run: |
+          cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" playground/site/ 2>/dev/null \
+            || cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" playground/site/
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: playground/site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -123,6 +123,16 @@ func New(l *lexer.Lexer, commandConfig CommandConfig, fontConfigFilepath, defaul
 	return p
 }
 
+// SetFontConfig injects a pre-parsed font configuration into the parser. This
+// allows callers to supply the font config from memory (e.g. parsed via
+// ParseFontConfig) instead of relying on lazy file I/O via LoadFontConfig, which
+// is required in environments without a filesystem (e.g. WebAssembly). Passing a
+// non-nil config also enables text replacements even when no font config
+// filepath was provided.
+func (p *Parser) SetFontConfig(fc *FontConfig) {
+	p.fonts = fc
+}
+
 // NewLintParser creates a new Poryscript AST Parser for linting purposes.
 func NewLintParser(l *lexer.Lexer, commandConfig CommandConfig, fontConfigFilepath, defaultFontID string, maxLineLength int) *Parser {
 	p := New(l, commandConfig, fontConfigFilepath, defaultFontID, maxLineLength, nil)
@@ -187,10 +197,10 @@ func (p *Parser) validateTextLineWidth(tok token.Token, text string) {
 // the font config to the given string. Returns the string unchanged if no
 // font config is available.
 func (p *Parser) applyTextReplacements(text string) string {
-	if p.fontConfigFilepath == "" {
-		return text
-	}
 	if p.fonts == nil {
+		if p.fontConfigFilepath == "" {
+			return text
+		}
 		fc, err := LoadFontConfig(p.fontConfigFilepath)
 		if err != nil {
 			return text

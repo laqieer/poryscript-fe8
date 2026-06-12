@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>FE8 Poryscript Playground</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="lib/codemirror.css">
+    <script src="lib/codemirror.js"></script>
+    <script src="lib/lz-string.js"></script>
+    <script src="wasm_exec.js"></script>
+</head>
+<body>
+    <header>
+        <h1>FE8 Poryscript Playground</h1>
+        <p>
+            Type a <code>.pory</code> script on the left and see the compiled
+            <strong>FE8 <code>EventListScr[]</code></strong> event-script C output on the right.
+            Compilation runs entirely in your browser via WebAssembly.
+        </p>
+        <p>
+            See the <a href="https://github.com/laqieer/poryscript-fe8" target="_blank" rel="noopener">poryscript-fe8</a>
+            repository for documentation. Based on the
+            <a href="https://github.com/huderlem/poryscript-playground" target="_blank" rel="noopener">Poryscript Playground</a>
+            by huderlem (MIT).
+        </p>
+        <div class="controls">
+            <button id="compile-button" disabled>Compile</button>
+            <label><input type="checkbox" id="live-checkbox" checked> Live compile</label>
+            <span id="status">Loading WebAssembly compiler&hellip;</span>
+        </div>
+        <p id="error-text"></p>
+    </header>
+
+    <main class="editorContainer">
+        <section class="editor">
+            <div class="editor-label">Poryscript (.pory)</div>
+            <textarea id="inputtext"></textarea>
+        </section>
+        <section class="editor">
+            <div class="editor-label">FE8 EventListScr</div>
+            <textarea id="outputtext"></textarea>
+        </section>
+    </main>
+
+    <script>
+        // Default FE8 sample script. Exercises playbgm, loadunits, move, text,
+        // a call, and an if(flag(...)) branch against the bundled FE8 config.
+        const DEFAULT_SAMPLE = `// FE8 Poryscript sample. Press "Compile" (or edit with Live compile on).
+// Text is msgId-based: pass the message id directly, e.g. text(0x90E).
+script EventScr_Sample_BeginningScene {
+    call(EventScr_Sample_Intro)
+    playbgm(SONG_RAID)
+    loadunits(1, UnitDef_Event_SampleAlly)
+    wait
+    move(0x18, CHARACTER_SETH, 4, 4)
+    flashcursor(CHARACTER_SETH, 60)
+    text(0x90E)
+    if (flag(EVFLAG_TMP(8))) {
+        asmcall(BmGuideTextSetAllGreen)
+        text(0x90F)
+    } else {
+        text(0x910)
+    }
+    setflag(0x8)
+    nofade
+    end
+}
+
+script EventScr_Sample_Intro {
+    fadein(16)
+    flashcursor(CHARACTER_EIRIKA, 60)
+    text(0x903)
+    end
+}`;
+
+        let inputEditor, outputEditor;
+        let wasmReady = false;
+        let configsReady = false;
+        let fe8CommandConfigJSON = "";
+        let fontConfigJSON = "";
+
+        const statusEl = document.getElementById("status");
+        const errorEl = document.getElementById("error-text");
+        const compileButton = document.getElementById("compile-button");
+        const liveCheckbox = document.getElementById("live-checkbox");
+
+        function setError(msg) {
+            errorEl.textContent = msg || "";
+        }
+
+        function doCompile() {
+            if (!wasmReady || typeof globalThis.compileFE8 !== "function") {
+                return;
+            }
+            // If the FE8 config files failed to load, keep the load error visible
+            // instead of overwriting it with confusing empty-config compile errors.
+            if (!configsReady) {
+                return;
+            }
+            const source = inputEditor.getValue();
+            const result = globalThis.compileFE8(source, fe8CommandConfigJSON, fontConfigJSON);
+            if (result && result.error) {
+                setError(result.error);
+                // Keep the previous output so the user can still read it.
+                return;
+            }
+            setError("");
+            outputEditor.setValue((result && result.output) || "");
+        }
+
+        function persistToUrl() {
+            const code = inputEditor.getValue();
+            try {
+                const compressed = LZString.compressToEncodedURIComponent(code);
+                window.history.replaceState({}, "", `?code=${compressed}`);
+            } catch (e) {
+                // Non-fatal: URL persistence is best-effort.
+            }
+        }
+
+        window.addEventListener("load", async function () {
+            inputEditor = CodeMirror.fromTextArea(document.getElementById("inputtext"), {
+                mode: "javascript",
+                lineNumbers: true,
+                lineWrapping: true,
+            });
+            outputEditor = CodeMirror.fromTextArea(document.getElementById("outputtext"), {
+                mode: "clike",
+                lineNumbers: true,
+                lineWrapping: true,
+                readOnly: true,
+            });
+
+            // Restore code from the URL if present, otherwise load the sample.
+            const urlParams = new URLSearchParams(window.location.search);
+            const compressedCode = urlParams.get("code");
+            if (compressedCode) {
+                const restored = LZString.decompressFromEncodedURIComponent(compressedCode);
+                inputEditor.setValue(restored || DEFAULT_SAMPLE);
+            } else {
+                inputEditor.setValue(DEFAULT_SAMPLE);
+            }
+
+            // Load the default FE8 configs that ship alongside the page.
+            try {
+                const [cmdResp, fontResp] = await Promise.all([
+                    fetch("command_config.fe8.json"),
+                    fetch("font_config.json"),
+                ]);
+                if (!cmdResp.ok || !fontResp.ok) {
+                    throw new Error(`HTTP ${cmdResp.status} / ${fontResp.status}`);
+                }
+                fe8CommandConfigJSON = await cmdResp.text();
+                fontConfigJSON = await fontResp.text();
+                configsReady = true;
+            } catch (e) {
+                setError("Failed to load FE8 config files: " + e.message);
+            }
+
+            // Robust WASM load (no instantiateStreaming dependency).
+            try {
+                const go = new Go();
+                const bytes = await (await fetch("main.wasm")).arrayBuffer();
+                const { instance } = await WebAssembly.instantiate(bytes, go.importObject);
+                go.run(instance);
+                wasmReady = true;
+                statusEl.textContent = "Compiler ready.";
+                compileButton.disabled = false;
+                doCompile();
+            } catch (e) {
+                statusEl.textContent = "Failed to load compiler.";
+                setError("WebAssembly load error: " + e.message);
+                console.error(e);
+            }
+
+            compileButton.addEventListener("click", doCompile);
+
+            inputEditor.on("change", function () {
+                persistToUrl();
+                if (liveCheckbox.checked) {
+                    doCompile();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

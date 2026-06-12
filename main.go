@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/huderlem/poryscript/compile"
 	"github.com/huderlem/poryscript/emitter"
 	"github.com/huderlem/poryscript/lexer"
 	"github.com/huderlem/poryscript/parser"
@@ -88,19 +89,17 @@ func parseOptions() options {
 	}
 }
 
-func readFE8CommandConfig(filepath string) emitter.FE8CommandConfig {
-	var config emitter.FE8CommandConfig
+// readFileString reads an entire file into a string. An empty filepath yields
+// an empty string with no error.
+func readFileString(filepath string) (string, error) {
 	if len(filepath) == 0 {
-		return config
+		return "", nil
 	}
 	bytes, err := ioutil.ReadFile(filepath)
 	if err != nil {
-		log.Fatalf("PORYSCRIPT ERROR: Failed to read FE8 command config file: %s\n", err.Error())
+		return "", err
 	}
-	if err := json.Unmarshal(bytes, &config); err != nil {
-		log.Fatalf("PORYSCRIPT ERROR: Failed to load FE8 command config file: %s\n", err.Error())
-	}
-	return config
+	return string(bytes), nil
 }
 
 func getInput(filepath string) (string, error) {
@@ -157,23 +156,39 @@ func main() {
 		log.Fatalf("PORYSCRIPT ERROR: %s\n", err.Error())
 	}
 
-	commandConfig := readCommandConfig(options.commandConfigFilepath)
-	parser := parser.New(lexer.New(input), commandConfig, options.fontConfigFilepath, options.defaultFontID, options.maxLineLength, options.compileSwitches)
-	program, err := parser.ParseProgram()
-	if err != nil {
-		log.Fatalf("PORYSCRIPT ERROR: %s\n", err.Error())
-	}
-
-	em := emitter.New(program, options.optimize, options.enableLineMarkers, options.inputFilepath)
 	var result string
 	if options.fe8 {
-		fe8Config := readFE8CommandConfig(options.fe8CommandConfigFilepath)
-		result, err = em.EmitFE8(fe8Config)
+		// Read all configs into memory and delegate to the shared, filesystem-free
+		// FE8 compile pipeline (also used by the WASM playground).
+		commandConfigJSON, err := readFileString(options.commandConfigFilepath)
+		if err != nil {
+			log.Fatalf("PORYSCRIPT ERROR: Failed to read command config file: %s\n", err.Error())
+		}
+		fe8CommandConfigJSON, err := readFileString(options.fe8CommandConfigFilepath)
+		if err != nil {
+			log.Fatalf("PORYSCRIPT ERROR: Failed to read FE8 command config file: %s\n", err.Error())
+		}
+		fontConfigJSON, err := readFileString(options.fontConfigFilepath)
+		if err != nil {
+			log.Fatalf("PORYSCRIPT ERROR: Failed to read font config file: %s\n", err.Error())
+		}
+		result, err = compile.CompileFE8(input, commandConfigJSON, fe8CommandConfigJSON, fontConfigJSON, options.defaultFontID, options.maxLineLength, options.optimize, options.compileSwitches)
+		if err != nil {
+			log.Fatalf("PORYSCRIPT ERROR: %s\n", err.Error())
+		}
 	} else {
+		commandConfig := readCommandConfig(options.commandConfigFilepath)
+		parser := parser.New(lexer.New(input), commandConfig, options.fontConfigFilepath, options.defaultFontID, options.maxLineLength, options.compileSwitches)
+		program, err := parser.ParseProgram()
+		if err != nil {
+			log.Fatalf("PORYSCRIPT ERROR: %s\n", err.Error())
+		}
+
+		em := emitter.New(program, options.optimize, options.enableLineMarkers, options.inputFilepath)
 		result, err = em.Emit()
-	}
-	if err != nil {
-		log.Fatalf("PORYSCRIPT ERROR: %s\n", err.Error())
+		if err != nil {
+			log.Fatalf("PORYSCRIPT ERROR: %s\n", err.Error())
+		}
 	}
 	err = writeOutput(result, options.outputFilepath)
 	if err != nil {
