@@ -169,12 +169,48 @@ reordering. Run `./poryscript-fe8 -h` for the full list.
 
 `make sample` regenerates `examples/sample.h`.
 
+## Install into a fireemblem8u decomp checkout
+
+Build and install the tool/configs into the decomp's `tools/poryscript/`
+directory:
+
+```sh
+FE8_DIR=/path/to/fireemblem8u make install
+# or:
+./install.sh /path/to/fireemblem8u
+```
+
+`install.sh` searches upward from the given path/current directory and refuses
+paths that are not inside a `fireemblem8u` root (it checks for
+`include/EAstdlib.h`, core event headers, `src/events/`, and `Makefile`).
+It installs:
+
+- `tools/poryscript/poryscript-fe8`
+- `tools/poryscript/command_config.fe8.json`
+- `tools/poryscript/command_config.json`
+- `tools/poryscript/font_config.json`
+
+From the decomp root, compile a project event script with the installed configs:
+
+```sh
+tools/poryscript/poryscript-fe8 \
+  -cc tools/poryscript/command_config.json \
+  -fcc tools/poryscript/command_config.fe8.json \
+  -fc tools/poryscript/font_config.json \
+  -i src/events/my-event.pory \
+  -o src/events/my-event.h
+```
+
+Then include the generated header from the relevant decomp C/event source just as
+you would include a hand-written event-script header.
+
 ## Validation
 
 The generated header is validated against a **read-only** `fireemblem8u`
 checkout (the decomp is never mutated):
 
 ```sh
+./check.sh /path/to/fireemblem8u
 FE8_DIR=/path/to/fireemblem8u ./check.sh
 # or: make check FE8_DIR=/path/to/fireemblem8u
 ```
